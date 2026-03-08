@@ -1,6 +1,4 @@
-﻿const STORAGE_KEY = 'betchaos_v2';
-const AUTH_KEY = 'wanna_bet_auth_v2';
-const SESSION_KEY = 'wanna_bet_session_v2';
+﻿const SESSION_KEY = 'wanna_bet_session_v3';
 const USERS = ['Ben', 'Sheh'];
 const PROFILE_MAP = { Ben: 'ben.PNG', Sheh: 'sheh.PNG' };
 
@@ -9,8 +7,11 @@ let authTargetUser = null;
 let authMode = 'login';
 
 const state = {
-  bets: loadBets(),
-  auth: loadAuth()
+  bets: [],
+  auth: {
+    Ben: { passwordSet: false },
+    Sheh: { passwordSet: false }
+  }
 };
 
 const els = {
@@ -48,15 +49,13 @@ const els = {
 
 init();
 
-function init() {
-  state.bets = state.bets.map(normalizeBet);
-  saveBets();
-  saveAuth();
-
+async function init() {
   els.profileCards.forEach((btn) => btn.addEventListener('click', () => openAuth(btn.dataset.user)));
   els.authForm.addEventListener('submit', onAuthSubmit);
   els.logoutBtn.addEventListener('click', logout);
   els.betForm.addEventListener('submit', onCreateBet);
+
+  await refreshState();
 
   const session = sessionStorage.getItem(SESSION_KEY);
   if (USERS.includes(session)) {
@@ -66,70 +65,29 @@ function init() {
   }
 }
 
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function refreshState() {
+  const res = await fetch('/api/state');
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load state');
+  state.bets = data.bets || [];
+  state.auth = data.auth || state.auth;
+}
+
 function normalizeName(name) {
   if (name === 'Me') return 'Ben';
   if (name === 'BF') return 'Sheh';
   return name;
-}
-
-function cleanText(value) {
-  if (!value) return '';
-  return String(value).replace(/`r`n/g, ' ').replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
-}
-
-function normalizeBet(bet) {
-  return {
-    ...bet,
-    creator: normalizeName(bet.creator),
-    winner: normalizeName(bet.winner),
-    title: cleanText(bet.title),
-    details: cleanText(bet.details),
-    prize: cleanText(bet.prize),
-    winnerVoteBen: normalizeName(bet.winnerVoteBen) || null,
-    winnerVoteSheh: normalizeName(bet.winnerVoteSheh) || null
-  };
-}
-
-function loadBets() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveBets() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.bets));
-}
-
-function loadAuth() {
-  const defaults = { Ben: { passHash: null }, Sheh: { passHash: null } };
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    const parsed = raw ? JSON.parse(raw) : defaults;
-    USERS.forEach((u) => {
-      if (!parsed[u]) parsed[u] = { passHash: null };
-      if (typeof parsed[u].passHash !== 'string') parsed[u].passHash = null;
-    });
-    return parsed;
-  } catch {
-    return defaults;
-  }
-}
-
-function saveAuth() {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(state.auth));
-}
-
-function simpleHash(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i += 1) {
-    h = (h << 5) - h + str.charCodeAt(i);
-    h |= 0;
-  }
-  return `h${h}`;
 }
 
 function openAuth(user) {
@@ -140,7 +98,7 @@ function openAuth(user) {
   els.confirmPwd.value = '';
   els.loginPwd.value = '';
 
-  if (!state.auth[user].passHash) {
+  if (!state.auth[user]?.passwordSet) {
     authMode = 'setup';
     els.authHeading.textContent = `Set Password for ${user}`;
     els.authSubtext.textContent = 'First login: create your password.';
@@ -159,33 +117,37 @@ function openAuth(user) {
   }
 }
 
-function onAuthSubmit(e) {
+async function onAuthSubmit(e) {
   e.preventDefault();
   if (!authTargetUser) return;
 
-  if (authMode === 'setup') {
-    const pw1 = els.newPwd.value;
-    const pw2 = els.confirmPwd.value;
-    if (pw1.length < 4) {
-      els.authMsg.textContent = 'Password must be at least 4 characters.';
+  try {
+    if (authMode === 'setup') {
+      const pw1 = els.newPwd.value;
+      const pw2 = els.confirmPwd.value;
+      if (pw1.length < 4) {
+        els.authMsg.textContent = 'Password must be at least 4 characters.';
+        return;
+      }
+      if (pw1 !== pw2) {
+        els.authMsg.textContent = 'Passwords do not match.';
+        return;
+      }
+      const data = await api('/api/auth', { user: authTargetUser, password: pw1, mode: 'setup' });
+      state.bets = data.bets;
+      state.auth = data.auth;
+      loginAs(authTargetUser);
       return;
     }
-    if (pw1 !== pw2) {
-      els.authMsg.textContent = 'Passwords do not match.';
-      return;
-    }
-    state.auth[authTargetUser].passHash = simpleHash(pw1);
-    saveAuth();
-    loginAs(authTargetUser);
-    return;
-  }
 
-  const pw = els.loginPwd.value;
-  if (simpleHash(pw) !== state.auth[authTargetUser].passHash) {
-    els.authMsg.textContent = 'Wrong password.';
-    return;
+    const pw = els.loginPwd.value;
+    const data = await api('/api/auth', { user: authTargetUser, password: pw, mode: 'login' });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    loginAs(authTargetUser);
+  } catch (err) {
+    els.authMsg.textContent = err.message;
   }
-  loginAs(authTargetUser);
 }
 
 function loginAs(user) {
@@ -214,10 +176,6 @@ function showApp() {
   els.appRoot.classList.remove('hidden');
 }
 
-function uid() {
-  return `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-}
-
 function fmtDate(iso) {
   return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -226,7 +184,7 @@ function otherPerson(person) {
   return person === 'Ben' ? 'Sheh' : 'Ben';
 }
 
-function onCreateBet(e) {
+async function onCreateBet(e) {
   e.preventDefault();
   if (!currentUser) return;
 
@@ -234,45 +192,33 @@ function onCreateBet(e) {
   const details = els.betDetails.value.trim();
   const prize = els.betPrize.value.trim();
   const creator = normalizeName(els.betCreator.value);
-
   if (!title || !details || !prize || !creator) return;
 
-  state.bets.unshift({
-    id: uid(),
-    title,
-    details,
-    prize,
-    creator,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    agreedAt: null,
-    completedAt: null,
-    winner: null,
-    winnerVoteBen: null,
-    winnerVoteSheh: null
-  });
-
-  saveBets();
-  els.betForm.reset();
-  els.betCreator.value = currentUser;
-  render();
+  try {
+    const data = await api('/api/bets', { action: 'create', title, details, prize, creator });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    els.betForm.reset();
+    els.betCreator.value = currentUser;
+    render();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
-function agreeBet(id) {
+async function agreeBet(id) {
   if (!currentUser) return;
-  const bet = state.bets.find((b) => b.id === id);
-  if (!bet || bet.status !== 'pending') return;
-  if (currentUser !== otherPerson(bet.creator)) return;
-
-  bet.status = 'agreed';
-  bet.agreedAt = new Date().toISOString();
-  bet.winnerVoteBen = null;
-  bet.winnerVoteSheh = null;
-  saveBets();
-  render();
+  try {
+    const data = await api('/api/bets', { action: 'agree', id, actor: currentUser });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    render();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
-function editBet(id) {
+async function editBet(id) {
   const bet = state.bets.find((b) => b.id === id);
   if (!bet || bet.status !== 'pending') return;
 
@@ -291,29 +237,26 @@ function editBet(id) {
   const prize = nextPrize.trim();
   if (!prize) return;
 
-  bet.title = title;
-  bet.details = details;
-  bet.prize = prize;
-  saveBets();
-  render();
+  try {
+    const data = await api('/api/bets', { action: 'edit', id, title, details, prize });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    render();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
-function voteWinner(id, selectedWinner) {
+async function voteWinner(id, selectedWinner) {
   if (!currentUser) return;
-  const bet = state.bets.find((b) => b.id === id);
-  if (!bet || bet.status !== 'agreed') return;
-
-  if (currentUser === 'Ben') bet.winnerVoteBen = selectedWinner;
-  if (currentUser === 'Sheh') bet.winnerVoteSheh = selectedWinner;
-
-  if (bet.winnerVoteBen && bet.winnerVoteSheh && bet.winnerVoteBen === bet.winnerVoteSheh) {
-    bet.status = 'history';
-    bet.winner = bet.winnerVoteBen;
-    bet.completedAt = new Date().toISOString();
+  try {
+    const data = await api('/api/bets', { action: 'vote', id, actor: currentUser, selectedWinner });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    render();
+  } catch (err) {
+    alert(err.message);
   }
-
-  saveBets();
-  render();
 }
 
 function updatePoints(history) {
@@ -362,9 +305,7 @@ function render() {
       node.querySelector('.bet-details').textContent = `${bet.details} | Winner gets: ${bet.prize || 'Not set'}`;
 
       let statusText = 'Waiting for agreement';
-      if (bet.status === 'agreed') {
-        statusText = `Awaiting matching votes`;
-      }
+      if (bet.status === 'agreed') statusText = 'Awaiting matching votes';
       node.querySelector('.status').textContent = statusText;
 
       let meta = `Started by ${bet.creator} on ${fmtDate(bet.createdAt)}`;
@@ -423,4 +364,3 @@ function emptyBlock(message) {
   el.textContent = message;
   return el;
 }
-

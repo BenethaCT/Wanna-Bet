@@ -1,3 +1,8 @@
 ﻿name = "wanna-bet"
 compatibility_date = "2026-03-08"
 pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wanna_bet_db"
+database_id = "31c28680-1b83-43a4-aeff-8c8d5224474b"
