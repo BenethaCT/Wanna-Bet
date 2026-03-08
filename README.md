@@ -23,6 +23,12 @@ This build runs fully in `localStorage`, so no Cloudflare, Wrangler, server, or 
 - Only opponent can agree pending bets
 - Winner vote must be one of the two participants
 
+## Screenshots
+![Home page](assets/screenshots/Home%20page.png)
+![Raise a bet](assets/screenshots/Raise%20a%20bet.png)
+![Vote winner](assets/screenshots/Vote%20winner.png)
+![History tracking](assets/screenshots/History%20tracking.png)
+
 ## Tech stack (showcase mode)
 - Frontend: HTML, CSS, Vanilla JavaScript
 - Storage: Browser localStorage
