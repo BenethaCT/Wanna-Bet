@@ -31,6 +31,7 @@ const els = {
   confirmPwd: document.getElementById('confirmPwd'),
   loginPwd: document.getElementById('loginPwd'),
   sessionUser: document.getElementById('sessionUser'),
+  resetPwdBtn: document.getElementById('resetPwdBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
   betForm: document.getElementById('betForm'),
   betTitle: document.getElementById('betTitle'),
@@ -52,6 +53,7 @@ init();
 async function init() {
   els.profileCards.forEach((btn) => btn.addEventListener('click', () => openAuth(btn.dataset.user)));
   els.authForm.addEventListener('submit', onAuthSubmit);
+  els.resetPwdBtn.addEventListener('click', resetPassword);
   els.logoutBtn.addEventListener('click', logout);
   els.betForm.addEventListener('submit', onCreateBet);
 
@@ -159,6 +161,43 @@ function loginAs(user) {
   render();
 }
 
+
+async function resetPassword() {
+  if (!currentUser) return;
+
+  const currentPassword = prompt('Enter current password:');
+  if (currentPassword === null) return;
+
+  const newPassword = prompt('Enter new password (min 4 chars):');
+  if (newPassword === null) return;
+
+  const confirmPassword = prompt('Confirm new password:');
+  if (confirmPassword === null) return;
+
+  if (newPassword.length < 4) {
+    alert('Password must be at least 4 characters.');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    alert('Passwords do not match.');
+    return;
+  }
+
+  try {
+    const data = await api('/api/auth', {
+      user: currentUser,
+      mode: 'reset',
+      currentPassword,
+      newPassword
+    });
+    state.bets = data.bets;
+    state.auth = data.auth;
+    alert('Password updated successfully.');
+  } catch (err) {
+    alert(err.message);
+  }
+}
 function logout() {
   currentUser = null;
   sessionStorage.removeItem(SESSION_KEY);
@@ -364,3 +403,4 @@ function emptyBlock(message) {
   el.textContent = message;
   return el;
 }
+
