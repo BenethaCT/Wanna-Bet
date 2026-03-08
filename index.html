@@ -1,0 +1,158 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wanna Bet?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-blob blob-a"></div>
+  <div class="bg-blob blob-b"></div>
+  <div class="bg-blob blob-c"></div>
+
+  <section id="authRoot" class="auth-root">
+    <h1 class="auth-title">Who's Betting?</h1>
+    <div class="profile-grid">
+      <button class="profile-card" data-user="Ben" type="button">
+        <img src="ben.PNG" alt="Ben profile" class="profile-pic" />
+        <span>Ben</span>
+      </button>
+      <button class="profile-card" data-user="Sheh" type="button">
+        <img src="sheh.PNG" alt="Sheh profile" class="profile-pic" />
+        <span>Sheh</span>
+      </button>
+    </div>
+
+    <div id="authPanel" class="card auth-panel hidden">
+      <h2 id="authHeading">Login</h2>
+      <p id="authSubtext"></p>
+      <form id="authForm">
+        <label id="newPwdWrap" class="hidden">
+          New password
+          <input id="newPwd" type="password" minlength="4" maxlength="40" />
+        </label>
+        <label id="confirmPwdWrap" class="hidden">
+          Confirm password
+          <input id="confirmPwd" type="password" minlength="4" maxlength="40" />
+        </label>
+        <label id="loginPwdWrap" class="hidden">
+          Password
+          <input id="loginPwd" type="password" minlength="4" maxlength="40" />
+        </label>
+        <button id="authSubmit" type="submit">Continue</button>
+      </form>
+      <p id="authMsg" class="auth-msg"></p>
+    </div>
+  </section>
+
+  <div id="appRoot" class="hidden">
+    <header class="hero">
+      <h1>Wanna Bet?</h1>
+      <p>Where love meets wild dares and questionable confidence.</p>
+      <div class="session-row">
+        <span id="sessionUser" class="pill">Logged in: -</span>
+        <button id="logoutBtn" class="secondary logout" type="button">Switch Profile</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card creator">
+        <h2>Raise A New Bet</h2>
+        <form id="betForm">
+          <label>
+            Bet title
+            <input id="betTitle" type="text" maxlength="80" placeholder="Loser buys pani puri" required />
+          </label>
+
+          <label>
+            Details
+            <textarea id="betDetails" rows="3" maxlength="300" placeholder="What exactly are we betting on?" required></textarea>
+          </label>
+
+          <label>
+            Winner gets?
+            <input id="betPrize" type="text" maxlength="120" placeholder="Example: Dinner treat + bragging rights" required />
+          </label>
+
+          <label>
+            Proposed by
+            <select id="betCreator" required>
+              <option value="Ben">Ben</option>
+              <option value="Sheh">Sheh</option>
+            </select>
+          </label>
+
+          <button type="submit">Launch Bet</button>
+        </form>
+      </section>
+
+      <section class="card live">
+        <div class="panel-title">
+          <h2>Live Bets</h2>
+          <span id="liveCount" class="pill">0 live bets</span>
+        </div>
+        <div id="liveBets" class="bets"></div>
+      </section>
+
+      <section class="card history">
+        <div class="panel-title">
+          <h2>Bet History</h2>
+          <span id="historyCount" class="pill">0 completed bets</span>
+        </div>
+        <div id="historyBets" class="bets history-grid"></div>
+      </section>
+    </main>
+
+    <aside class="scoreboard" aria-label="Points scoreboard">
+      <div class="score-title">Points</div>
+      <div class="score-row">
+        <div class="score-player">
+          <img class="avatar" src="ben.PNG" alt="Ben profile" />
+          <span>Ben</span>
+          <strong id="benPoints">0</strong>
+        </div>
+        <div class="score-player">
+          <img class="avatar" src="sheh.PNG" alt="Sheh profile" />
+          <span>Sheh</span>
+          <strong id="shehPoints">0</strong>
+        </div>
+      </div>
+    </aside>
+
+    <template id="liveBetTemplate">
+      <article class="bet-card">
+        <div class="bet-head">
+          <div class="title-row">
+            <img class="avatar proposer-avatar" alt="Proposer profile" />
+            <h3 class="bet-title"></h3>
+          </div>
+          <span class="status"></span>
+        </div>
+        <p class="bet-details"></p>
+        <p class="bet-meta"></p>
+        <div class="bet-actions"></div>
+      </article>
+    </template>
+
+    <template id="historyBetTemplate">
+      <article class="bet-card history-card">
+        <div class="bet-head">
+          <div class="title-row">
+            <img class="avatar winner-avatar" alt="Winner profile" />
+            <h3 class="bet-title"></h3>
+          </div>
+          <span class="winner"></span>
+        </div>
+        <p class="bet-details"></p>
+        <p class="bet-meta"></p>
+      </article>
+    </template>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
