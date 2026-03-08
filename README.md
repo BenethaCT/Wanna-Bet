@@ -2,8 +2,12 @@
 
 A lightweight social betting app where two users can create bets, agree on terms, and close bets only when both submit the same winner.
 
-## Why this project
-This started as a private two-person app and was refactored into a generalized multi-user architecture.
+## Quick start (no backend needed)
+1. Download or clone the repo.
+2. Open `index.html` in your browser.
+3. Create accounts and start betting.
+
+This build runs fully in `localStorage`, so no Cloudflare, Wrangler, server, or database setup is required.
 
 ## Core features
 - Account-based auth (register, login, logout, password reset)
@@ -19,27 +23,16 @@ This started as a private two-person app and was refactored into a generalized m
 - Only opponent can agree pending bets
 - Winner vote must be one of the two participants
 
-## Tech stack
+## Tech stack (showcase mode)
 - Frontend: HTML, CSS, Vanilla JavaScript
-- Backend: Cloudflare Pages Functions
-- Database: Cloudflare D1 (SQLite)
+- Storage: Browser localStorage
 
 ## Project structure
 - `index.html` - app shell and auth/app views
-- `script.js` - client logic, state handling, API actions
+- `script.js` - client logic, local auth, local data store, bet lifecycle
 - `style.css` - UI styling
-- `functions/api/auth.js` - auth endpoints
-- `functions/api/bets.js` - bet lifecycle endpoints
-- `functions/api/state.js` - authenticated state fetch
-- `functions/api/_lib.js` - shared helpers
-- `migrations/001_init.sql` - database schema
 
-## Security notes
-- Input is sanitized server-side before writes.
-- Session token auth is used for API authorization.
-- Password hashing is currently SHA-256 based for Worker portability.
-- Production recommendation: migrate password hashing to Argon2/scrypt/bcrypt.
-
-## Showcase notes
-This repository is presented as a code showcase. A live deployment is optional and not required to evaluate architecture, business rules, or implementation quality.
-Current status: this repository is local and not yet connected/deployed to Cloudflare.
+## Notes
+- Data is browser-local and not shared across devices/browsers.
+- Clearing browser storage clears app data.
+- Cloudflare Functions/D1 files remain in repo as optional backend reference.
