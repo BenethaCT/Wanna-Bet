@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -15,36 +15,22 @@
   <div class="bg-blob blob-c"></div>
 
   <section id="authRoot" class="auth-root">
-    <h1 class="auth-title">I am</h1>
-    <div class="profile-grid">
-      <button class="profile-card" data-user="Ben" type="button">
-        <img src="ben.PNG" alt="Ben profile" class="profile-pic" />
-        <span>Ben</span>
-      </button>
-      <button class="profile-card" data-user="Sheh" type="button">
-        <img src="sheh.PNG" alt="Sheh profile" class="profile-pic" />
-        <span>Sheh</span>
-      </button>
-    </div>
-
-    <div id="authPanel" class="card auth-panel hidden">
+    <h1 class="auth-title">Wanna Bet?</h1>
+    <div id="authPanel" class="card auth-panel">
       <h2 id="authHeading">Login</h2>
-      <p id="authSubtext"></p>
+      <p id="authSubtext">Use your account to continue.</p>
       <form id="authForm">
-        <label id="newPwdWrap" class="hidden">
-          New password
-          <input id="newPwd" type="password" minlength="4" maxlength="40" />
+        <label>
+          Username
+          <input id="authUsername" type="text" minlength="3" maxlength="24" required />
         </label>
-        <label id="confirmPwdWrap" class="hidden">
-          Confirm password
-          <input id="confirmPwd" type="password" minlength="4" maxlength="40" />
-        </label>
-        <label id="loginPwdWrap" class="hidden">
+        <label>
           Password
-          <input id="loginPwd" type="password" minlength="4" maxlength="40" />
+          <input id="authPassword" type="password" minlength="8" maxlength="72" required />
         </label>
-        <button id="authSubmit" type="submit">Continue</button>
+        <button id="authSubmit" type="submit">Login</button>
       </form>
+      <button id="authToggle" class="secondary" type="button">Create new account</button>
       <p id="authMsg" class="auth-msg"></p>
     </div>
   </section>
@@ -52,11 +38,11 @@
   <div id="appRoot" class="hidden">
     <header class="hero">
       <h1>Wanna Bet?</h1>
-      <p>Where love meets wild dares and questionable confidence.</p>
+      <p>Raise a bet, get agreement, and close by matching winner votes.</p>
       <div class="session-row">
         <span id="sessionUser" class="pill">Logged in: -</span>
         <button id="resetPwdBtn" class="secondary logout" type="button">Reset Password</button>
-        <button id="logoutBtn" class="secondary logout" type="button">Switch Profile</button>
+        <button id="logoutBtn" class="secondary logout" type="button">Logout</button>
       </div>
     </header>
 
@@ -66,25 +52,22 @@
         <form id="betForm">
           <label>
             Bet title
-            <input id="betTitle" type="text" maxlength="80" placeholder="Loser buys pani puri" required />
+            <input id="betTitle" type="text" maxlength="80" required />
           </label>
 
           <label>
             Details
-            <textarea id="betDetails" rows="3" maxlength="300" placeholder="What exactly are we betting on?" required></textarea>
+            <textarea id="betDetails" rows="3" maxlength="300" required></textarea>
           </label>
 
           <label>
             Winner gets?
-            <input id="betPrize" type="text" maxlength="120" placeholder="Example: Dinner treat + bragging rights" required />
+            <input id="betPrize" type="text" maxlength="120" required />
           </label>
 
           <label>
-            Proposed by
-            <select id="betCreator" required>
-              <option value="Ben">Ben</option>
-              <option value="Sheh">Sheh</option>
-            </select>
+            Opponent
+            <select id="betOpponent" required></select>
           </label>
 
           <button type="submit">Launch Bet</button>
@@ -108,27 +91,10 @@
       </section>
     </main>
 
-    <aside class="scoreboard" aria-label="Points scoreboard">
-      <div class="score-title">Points</div>
-      <div class="score-row">
-        <div class="score-player">
-          <img class="avatar" src="ben.PNG" alt="Ben profile" />
-          <span>Ben</span>
-          <strong id="benPoints">0</strong>
-        </div>
-        <div class="score-player">
-          <img class="avatar" src="sheh.PNG" alt="Sheh profile" />
-          <span>Sheh</span>
-          <strong id="shehPoints">0</strong>
-        </div>
-      </div>
-    </aside>
-
     <template id="liveBetTemplate">
       <article class="bet-card">
         <div class="bet-head">
           <div class="title-row">
-            <img class="avatar proposer-avatar" alt="Proposer profile" />
             <h3 class="bet-title"></h3>
           </div>
           <span class="status"></span>
@@ -143,7 +109,6 @@
       <article class="bet-card history-card">
         <div class="bet-head">
           <div class="title-row">
-            <img class="avatar winner-avatar" alt="Winner profile" />
             <h3 class="bet-title"></h3>
           </div>
           <span class="winner"></span>
@@ -157,6 +122,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
-
-

@@ -1,35 +1,26 @@
-﻿const SESSION_KEY = 'wanna_bet_session_v3';
-const USERS = ['Ben', 'Sheh'];
-const PROFILE_MAP = { Ben: 'ben.PNG', Sheh: 'sheh.PNG' };
+const TOKEN_KEY = 'wanna_bet_token_v1';
 
+let token = localStorage.getItem(TOKEN_KEY) || '';
 let currentUser = null;
-let authTargetUser = null;
-let authMode = 'login';
 
 const state = {
-  bets: [],
-  auth: {
-    Ben: { passwordSet: false },
-    Sheh: { passwordSet: false }
-  }
+  users: [],
+  bets: []
 };
+
+let authMode = 'login';
 
 const els = {
   authRoot: document.getElementById('authRoot'),
   appRoot: document.getElementById('appRoot'),
-  profileCards: Array.from(document.querySelectorAll('.profile-card')),
-  authPanel: document.getElementById('authPanel'),
   authHeading: document.getElementById('authHeading'),
   authSubtext: document.getElementById('authSubtext'),
   authForm: document.getElementById('authForm'),
   authMsg: document.getElementById('authMsg'),
   authSubmit: document.getElementById('authSubmit'),
-  newPwdWrap: document.getElementById('newPwdWrap'),
-  confirmPwdWrap: document.getElementById('confirmPwdWrap'),
-  loginPwdWrap: document.getElementById('loginPwdWrap'),
-  newPwd: document.getElementById('newPwd'),
-  confirmPwd: document.getElementById('confirmPwd'),
-  loginPwd: document.getElementById('loginPwd'),
+  authToggle: document.getElementById('authToggle'),
+  authUsername: document.getElementById('authUsername'),
+  authPassword: document.getElementById('authPassword'),
   sessionUser: document.getElementById('sessionUser'),
   resetPwdBtn: document.getElementById('resetPwdBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
@@ -37,40 +28,35 @@ const els = {
   betTitle: document.getElementById('betTitle'),
   betDetails: document.getElementById('betDetails'),
   betPrize: document.getElementById('betPrize'),
-  betCreator: document.getElementById('betCreator'),
+  betOpponent: document.getElementById('betOpponent'),
   liveBets: document.getElementById('liveBets'),
   historyBets: document.getElementById('historyBets'),
   liveCount: document.getElementById('liveCount'),
   historyCount: document.getElementById('historyCount'),
-  benPoints: document.getElementById('benPoints'),
-  shehPoints: document.getElementById('shehPoints'),
   liveTpl: document.getElementById('liveBetTemplate'),
   historyTpl: document.getElementById('historyBetTemplate')
 };
 
 init();
 
-async function init() {
-  els.profileCards.forEach((btn) => btn.addEventListener('click', () => openAuth(btn.dataset.user)));
-  els.authForm.addEventListener('submit', onAuthSubmit);
-  els.resetPwdBtn.addEventListener('click', resetPassword);
-  els.logoutBtn.addEventListener('click', logout);
-  els.betForm.addEventListener('submit', onCreateBet);
-
-  await refreshState();
-
-  const session = sessionStorage.getItem(SESSION_KEY);
-  if (USERS.includes(session)) {
-    loginAs(session);
-  } else {
-    showAuthOnly();
-  }
+function authHeaders() {
+  return token ? { authorization: `Bearer ${token}` } : {};
 }
 
-async function api(path, body) {
+async function apiGet(path) {
+  const res = await fetch(path, { headers: { ...authHeaders() } });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function apiPost(path, body) {
   const res = await fetch(path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      ...authHeaders()
+    },
     body: JSON.stringify(body)
   });
   const data = await res.json();
@@ -78,106 +64,78 @@ async function api(path, body) {
   return data;
 }
 
-async function refreshState() {
-  const res = await fetch('/api/state');
-  const data = await res.json();
-  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load state');
-  state.bets = data.bets || [];
-  state.auth = data.auth || state.auth;
-}
+async function init() {
+  els.authForm.addEventListener('submit', onAuthSubmit);
+  els.authToggle.addEventListener('click', toggleAuthMode);
+  els.resetPwdBtn.addEventListener('click', resetPassword);
+  els.logoutBtn.addEventListener('click', logout);
+  els.betForm.addEventListener('submit', onCreateBet);
 
-function normalizeName(name) {
-  if (name === 'Me') return 'Ben';
-  if (name === 'BF') return 'Sheh';
-  return name;
-}
-
-function openAuth(user) {
-  authTargetUser = user;
-  els.authPanel.classList.remove('hidden');
-  els.authMsg.textContent = '';
-  els.newPwd.value = '';
-  els.confirmPwd.value = '';
-  els.loginPwd.value = '';
-
-  if (!state.auth[user]?.passwordSet) {
-    authMode = 'setup';
-    els.authHeading.textContent = `Set Password for ${user}`;
-    els.authSubtext.textContent = 'First login: create your password.';
-    els.newPwdWrap.classList.remove('hidden');
-    els.confirmPwdWrap.classList.remove('hidden');
-    els.loginPwdWrap.classList.add('hidden');
-    els.authSubmit.textContent = 'Set Password';
-  } else {
-    authMode = 'login';
-    els.authHeading.textContent = `Enter Password for ${user}`;
-    els.authSubtext.textContent = 'Login to continue.';
-    els.newPwdWrap.classList.add('hidden');
-    els.confirmPwdWrap.classList.add('hidden');
-    els.loginPwdWrap.classList.remove('hidden');
-    els.authSubmit.textContent = 'Login';
+  if (!token) {
+    showAuthOnly();
+    renderAuth();
+    return;
   }
+
+  try {
+    const data = await apiGet('/api/state');
+    hydrateState(data);
+    showApp();
+    render();
+  } catch {
+    logout();
+  }
+}
+
+function hydrateState(data) {
+  currentUser = data.user || null;
+  state.users = data.users || [];
+  state.bets = data.bets || [];
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  els.authMsg.textContent = '';
+  renderAuth();
+}
+
+function renderAuth() {
+  const isLogin = authMode === 'login';
+  els.authHeading.textContent = isLogin ? 'Login' : 'Create Account';
+  els.authSubtext.textContent = isLogin
+    ? 'Use your account to continue.'
+    : 'Create a new account to start betting.';
+  els.authSubmit.textContent = isLogin ? 'Login' : 'Create Account';
+  els.authToggle.textContent = isLogin ? 'Create new account' : 'Already have an account? Login';
 }
 
 async function onAuthSubmit(e) {
   e.preventDefault();
-  if (!authTargetUser) return;
+  const username = els.authUsername.value.trim();
+  const password = els.authPassword.value;
 
   try {
-    if (authMode === 'setup') {
-      const pw1 = els.newPwd.value;
-      const pw2 = els.confirmPwd.value;
-      if (pw1.length < 4) {
-        els.authMsg.textContent = 'Password must be at least 4 characters.';
-        return;
-      }
-      if (pw1 !== pw2) {
-        els.authMsg.textContent = 'Passwords do not match.';
-        return;
-      }
-      const data = await api('/api/auth', { user: authTargetUser, password: pw1, mode: 'setup' });
-      state.bets = data.bets;
-      state.auth = data.auth;
-      loginAs(authTargetUser);
-      return;
-    }
-
-    const pw = els.loginPwd.value;
-    const data = await api('/api/auth', { user: authTargetUser, password: pw, mode: 'login' });
-    state.bets = data.bets;
-    state.auth = data.auth;
-    loginAs(authTargetUser);
+    const action = authMode === 'login' ? 'login' : 'register';
+    const data = await apiPost('/api/auth', { action, username, password });
+    token = data.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    hydrateState(data);
+    showApp();
+    render();
+    els.authForm.reset();
+    els.authMsg.textContent = '';
   } catch (err) {
     els.authMsg.textContent = err.message;
   }
 }
 
-function loginAs(user) {
-  currentUser = user;
-  sessionStorage.setItem(SESSION_KEY, user);
-  els.sessionUser.textContent = `Logged in: ${user}`;
-  els.betCreator.value = user;
-  showApp();
-  render();
-}
-
-
 async function resetPassword() {
-  if (!currentUser) return;
-
   const currentPassword = prompt('Enter current password:');
   if (currentPassword === null) return;
-
-  const newPassword = prompt('Enter new password (min 4 chars):');
+  const newPassword = prompt('Enter new password (8-72 chars):');
   if (newPassword === null) return;
-
   const confirmPassword = prompt('Confirm new password:');
   if (confirmPassword === null) return;
-
-  if (newPassword.length < 4) {
-    alert('Password must be at least 4 characters.');
-    return;
-  }
 
   if (newPassword !== confirmPassword) {
     alert('Passwords do not match.');
@@ -185,29 +143,30 @@ async function resetPassword() {
   }
 
   try {
-    const data = await api('/api/auth', {
-      user: currentUser,
-      mode: 'reset',
-      currentPassword,
-      newPassword
-    });
-    state.bets = data.bets;
-    state.auth = data.auth;
-    alert('Password updated successfully.');
+    await apiPost('/api/auth', { action: 'reset_password', currentPassword, newPassword });
+    alert('Password updated.');
   } catch (err) {
     alert(err.message);
   }
 }
-function logout() {
+
+async function logout() {
+  try {
+    if (token) await apiPost('/api/auth', { action: 'logout' });
+  } catch {}
+
+  token = '';
   currentUser = null;
-  sessionStorage.removeItem(SESSION_KEY);
+  state.users = [];
+  state.bets = [];
+  localStorage.removeItem(TOKEN_KEY);
   showAuthOnly();
+  renderAuth();
 }
 
 function showAuthOnly() {
   els.appRoot.classList.add('hidden');
   els.authRoot.classList.remove('hidden');
-  els.authPanel.classList.add('hidden');
 }
 
 function showApp() {
@@ -219,26 +178,35 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-function otherPerson(person) {
-  return person === 'Ben' ? 'Sheh' : 'Ben';
+function isCreator(bet) {
+  return currentUser && bet.creatorId === currentUser.id;
+}
+
+function isOpponent(bet) {
+  return currentUser && bet.opponentId === currentUser.id;
+}
+
+function myVote(bet) {
+  return (bet.votes || {})[currentUser.id] || null;
+}
+
+async function refreshState() {
+  const data = await apiGet('/api/state');
+  hydrateState(data);
 }
 
 async function onCreateBet(e) {
   e.preventDefault();
-  if (!currentUser) return;
-
   const title = els.betTitle.value.trim();
   const details = els.betDetails.value.trim();
   const prize = els.betPrize.value.trim();
-  const creator = normalizeName(els.betCreator.value);
-  if (!title || !details || !prize || !creator) return;
+  const opponentId = els.betOpponent.value;
+  if (!title || !details || !prize || !opponentId) return;
 
   try {
-    const data = await api('/api/bets', { action: 'create', title, details, prize, creator });
-    state.bets = data.bets;
-    state.auth = data.auth;
+    const data = await apiPost('/api/bets', { action: 'create', title, details, prize, opponentId });
+    hydrateState(data);
     els.betForm.reset();
-    els.betCreator.value = currentUser;
     render();
   } catch (err) {
     alert(err.message);
@@ -246,11 +214,9 @@ async function onCreateBet(e) {
 }
 
 async function agreeBet(id) {
-  if (!currentUser) return;
   try {
-    const data = await api('/api/bets', { action: 'agree', id, actor: currentUser });
-    state.bets = data.bets;
-    state.auth = data.auth;
+    const data = await apiPost('/api/bets', { action: 'agree', id });
+    hydrateState(data);
     render();
   } catch (err) {
     alert(err.message);
@@ -259,7 +225,7 @@ async function agreeBet(id) {
 
 async function editBet(id) {
   const bet = state.bets.find((b) => b.id === id);
-  if (!bet || bet.status !== 'pending') return;
+  if (!bet || bet.status !== 'pending' || !isCreator(bet)) return;
 
   const nextTitle = prompt('Edit bet title:', bet.title);
   if (nextTitle === null) return;
@@ -277,36 +243,22 @@ async function editBet(id) {
   if (!prize) return;
 
   try {
-    const data = await api('/api/bets', { action: 'edit', id, title, details, prize });
-    state.bets = data.bets;
-    state.auth = data.auth;
+    const data = await apiPost('/api/bets', { action: 'edit', id, title, details, prize });
+    hydrateState(data);
     render();
   } catch (err) {
     alert(err.message);
   }
 }
 
-async function voteWinner(id, selectedWinner) {
-  if (!currentUser) return;
+async function voteWinner(id, selectedWinnerId) {
   try {
-    const data = await api('/api/bets', { action: 'vote', id, actor: currentUser, selectedWinner });
-    state.bets = data.bets;
-    state.auth = data.auth;
+    const data = await apiPost('/api/bets', { action: 'vote', id, selectedWinnerId });
+    hydrateState(data);
     render();
   } catch (err) {
     alert(err.message);
   }
-}
-
-function updatePoints(history) {
-  let ben = 0;
-  let sheh = 0;
-  history.forEach((bet) => {
-    if (normalizeName(bet.winner) === 'Ben') ben += 1;
-    if (normalizeName(bet.winner) === 'Sheh') sheh += 1;
-  });
-  els.benPoints.textContent = String(ben);
-  els.shehPoints.textContent = String(sheh);
 }
 
 function mkButton(text, className, handler, disabled = false) {
@@ -319,59 +271,77 @@ function mkButton(text, className, handler, disabled = false) {
   return btn;
 }
 
+function renderOpponentOptions() {
+  els.betOpponent.innerHTML = '';
+  const options = state.users.filter((u) => currentUser && u.id !== currentUser.id);
+
+  if (!options.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No other users yet';
+    els.betOpponent.appendChild(opt);
+    els.betOpponent.disabled = true;
+    return;
+  }
+
+  els.betOpponent.disabled = false;
+  for (const user of options) {
+    const opt = document.createElement('option');
+    opt.value = user.id;
+    opt.textContent = user.username;
+    els.betOpponent.appendChild(opt);
+  }
+}
+
 function render() {
   if (!currentUser) return;
 
   const live = state.bets.filter((b) => b.status !== 'history');
   const history = state.bets.filter((b) => b.status === 'history');
 
-  els.sessionUser.textContent = `Logged in: ${currentUser}`;
-  if (!els.betCreator.value) els.betCreator.value = currentUser;
-
+  els.sessionUser.textContent = `Logged in: ${currentUser.username}`;
   els.liveCount.textContent = `${live.length} live bet${live.length === 1 ? '' : 's'}`;
   els.historyCount.textContent = `${history.length} completed bet${history.length === 1 ? '' : 's'}`;
-  updatePoints(history);
+  renderOpponentOptions();
 
   els.liveBets.innerHTML = '';
   els.historyBets.innerHTML = '';
 
   if (!live.length) {
-    els.liveBets.appendChild(emptyBlock('No live bets. Peace is suspicious.'));
+    els.liveBets.appendChild(emptyBlock('No live bets yet.'));
   } else {
     live.forEach((bet) => {
       const node = els.liveTpl.content.firstElementChild.cloneNode(true);
       node.querySelector('.bet-title').textContent = bet.title;
-      node.querySelector('.bet-details').textContent = `${bet.details} | Winner gets: ${bet.prize || 'Not set'}`;
+      node.querySelector('.bet-details').textContent = `${bet.details} | Winner gets: ${bet.prize}`;
 
+      const other = isCreator(bet) ? bet.opponent : bet.creator;
       let statusText = 'Waiting for agreement';
       if (bet.status === 'agreed') statusText = 'Awaiting matching votes';
       node.querySelector('.status').textContent = statusText;
 
-      let meta = `Started by ${bet.creator} on ${fmtDate(bet.createdAt)}`;
-      if (bet.status === 'agreed') {
-        meta += ` | Ben vote: ${bet.winnerVoteBen || 'Not voted'} | Sheh vote: ${bet.winnerVoteSheh || 'Not voted'}`;
-      }
-      node.querySelector('.bet-meta').textContent = meta;
+      const votes = bet.votes || {};
+      const creatorVote = votes[bet.creatorId]?.selectedWinner || 'Not voted';
+      const opponentVote = votes[bet.opponentId]?.selectedWinner || 'Not voted';
 
-      const proposerAvatar = node.querySelector('.proposer-avatar');
-      proposerAvatar.src = PROFILE_MAP[bet.creator] || '';
-      proposerAvatar.alt = `${bet.creator} profile`;
+      let meta = `Creator: ${bet.creator} | Opponent: ${bet.opponent} | Created ${fmtDate(bet.createdAt)}`;
+      if (bet.status === 'agreed') meta += ` | Votes -> ${bet.creator}: ${creatorVote}, ${bet.opponent}: ${opponentVote}`;
+      node.querySelector('.bet-meta').textContent = meta;
 
       const actions = node.querySelector('.bet-actions');
       if (bet.status === 'pending') {
-        const canAgree = currentUser === otherPerson(bet.creator);
-        actions.appendChild(mkButton(`Agree (${otherPerson(bet.creator)})`, 'ok', () => agreeBet(bet.id), !canAgree));
-        actions.appendChild(mkButton('Edit Bet', 'secondary', () => editBet(bet.id)));
+        actions.appendChild(mkButton(`Agree (${other})`, 'ok', () => agreeBet(bet.id), !isOpponent(bet)));
+        actions.appendChild(mkButton('Edit Bet', 'secondary', () => editBet(bet.id), !isCreator(bet)));
       }
 
       if (bet.status === 'agreed') {
-        const myVote = currentUser === 'Ben' ? bet.winnerVoteBen : bet.winnerVoteSheh;
-        actions.appendChild(mkButton(`${currentUser} votes: Ben`, 'ok', () => voteWinner(bet.id, 'Ben')));
-        actions.appendChild(mkButton(`${currentUser} votes: Sheh`, 'secondary', () => voteWinner(bet.id, 'Sheh')));
-        if (myVote) {
+        actions.appendChild(mkButton(`Vote ${bet.creator}`, 'ok', () => voteWinner(bet.id, bet.creatorId)));
+        actions.appendChild(mkButton(`Vote ${bet.opponent}`, 'secondary', () => voteWinner(bet.id, bet.opponentId)));
+        const mine = myVote(bet);
+        if (mine) {
           const tag = document.createElement('span');
           tag.className = 'pill';
-          tag.textContent = `Your vote: ${myVote}`;
+          tag.textContent = `Your vote: ${mine.selectedWinner}`;
           actions.appendChild(tag);
         }
       }
@@ -381,17 +351,14 @@ function render() {
   }
 
   if (!history.length) {
-    els.historyBets.appendChild(emptyBlock('No completed bets yet. Crown awaits.'));
+    els.historyBets.appendChild(emptyBlock('No completed bets yet.'));
   } else {
     history.forEach((bet) => {
       const node = els.historyTpl.content.firstElementChild.cloneNode(true);
       node.querySelector('.bet-title').textContent = bet.title;
-      node.querySelector('.winner').textContent = `Winner: ${bet.winner}`;
-      const winnerAvatar = node.querySelector('.winner-avatar');
-      winnerAvatar.src = PROFILE_MAP[bet.winner] || '';
-      winnerAvatar.alt = `${bet.winner} profile`;
-      node.querySelector('.bet-details').textContent = `${bet.details} | Winner gets: ${bet.prize || 'Not set'}`;
-      node.querySelector('.bet-meta').textContent = `Proposed by ${bet.creator} | Completed ${fmtDate(bet.completedAt)}`;
+      node.querySelector('.winner').textContent = `Winner: ${bet.winner || '-'}`;
+      node.querySelector('.bet-details').textContent = `${bet.details} | Winner gets: ${bet.prize}`;
+      node.querySelector('.bet-meta').textContent = `Creator: ${bet.creator} | Opponent: ${bet.opponent} | Completed ${fmtDate(bet.completedAt)}`;
       els.historyBets.appendChild(node);
     });
   }
@@ -403,4 +370,3 @@ function emptyBlock(message) {
   el.textContent = message;
   return el;
 }
-

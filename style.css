@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg-1: #fff6db;
   --bg-2: #ffd8d8;
   --bg-3: #cff7ff;
@@ -299,25 +299,6 @@ button.warn {
   min-width: 0;
 }
 
-.avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  object-fit: cover;
-  background: #fff;
-  flex: 0 0 auto;
-}
-
-.history-card .avatar {
-  width: 28px;
-  height: 28px;
-}
-
-
-body {
-  padding-bottom: 110px;
-}
 
 .scoreboard {
   position: fixed;
@@ -392,28 +373,6 @@ body {
   letter-spacing: 1px;
 }
 
-.profile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 220px));
-  gap: 14px;
-  justify-content: center;
-}
-
-.profile-card {
-  display: grid;
-  gap: 8px;
-  place-items: center;
-  background: #ffffffde;
-  color: var(--ink);
-}
-
-.profile-pic {
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  border: 3px solid var(--border);
-  object-fit: cover;
-}
 
 .auth-panel {
   width: min(440px, 92vw);
@@ -445,3 +404,4 @@ button:disabled {
   transform: none;
   box-shadow: none;
 }
+
